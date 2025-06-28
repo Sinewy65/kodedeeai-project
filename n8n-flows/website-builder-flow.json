@@ -1,0 +1,140 @@
+{
+  "name": "KodeDeeAI Website Builder Flow",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "website/generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-2",
+      "name": "Website Builder Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "website-builder-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process website building request\nconst requestData = $input.first().json;\n\n// Extract parameters\nconst {\n  type = 'business',\n  style = 'modern',\n  colors = {\n    primary: '#3B82F6',\n    secondary: '#1E40AF',\n    accent: '#F59E0B'\n  },\n  content = {},\n  features = [],\n  pages = ['home', 'about', 'contact']\n} = requestData;\n\n// Validate required fields\nif (!content.businessName) {\n  throw new Error('Business name is required');\n}\n\n// Generate template selection based on type and style\nconst templateConfig = {\n  business: {\n    modern: 'business-modern-v1',\n    minimal: 'business-minimal-v1',\n    creative: 'business-creative-v1'\n  },\n  portfolio: {\n    modern: 'portfolio-modern-v1',\n    minimal: 'portfolio-minimal-v1',\n    creative: 'portfolio-creative-v1'\n  },\n  ecommerce: {\n    modern: 'shop-modern-v1',\n    minimal: 'shop-minimal-v1',\n    creative: 'shop-creative-v1'\n  }\n};\n\nconst selectedTemplate = templateConfig[type]?.[style] || 'business-modern-v1';\n\n// Prepare website configuration\nconst websiteConfig = {\n  template: selectedTemplate,\n  branding: {\n    name: content.businessName,\n    tagline: content.tagline || '',\n    logo: content.logo || '',\n    colors: colors\n  },\n  content: {\n    hero: {\n      title: content.heroTitle || content.businessName,\n      subtitle: content.heroSubtitle || content.tagline || '',\n      cta: content.heroCTA || 'เริ่มต้นเลย'\n    },\n    about: {\n      title: 'เกี่ยวกับเรา',\n      description: content.aboutDescription || '',\n      mission: content.mission || '',\n      vision: content.vision || ''\n    },\n    services: content.services || [],\n    contact: {\n      email: content.email || '',\n      phone: content.phone || '',\n      address: content.address || '',\n      social: content.social || {}\n    }\n  },\n  features: features,\n  pages: pages,\n  seo: {\n    title: `${content.businessName} - ${content.tagline || 'Professional Website'}`,\n    description: content.metaDescription || `${content.businessName} - สร้างสรรค์ประสบการณ์ดิจิทัลที่ยอดเยี่ยม`,\n    keywords: content.keywords || []\n  }\n};\n\n// Return processed data\nreturn {\n  originalRequest: requestData,\n  websiteConfig: websiteConfig,\n  timestamp: new Date().toISOString(),\n  requestId: `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};"
+      },
+      "id": "code-3",
+      "name": "Process Website Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate HTML/CSS/JS code for website\nconst { websiteConfig, requestId } = $input.first().json;\n\n// Template generators\nconst generateHTML = (config) => {\n  return `<!DOCTYPE html>\n<html lang=\"th\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>${config.seo.title}</title>\n    <meta name=\"description\" content=\"${config.seo.description}\">\n    <link href=\"https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css\" rel=\"stylesheet\">\n    <link href=\"https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap\" rel=\"stylesheet\">\n    <style>\n        body { font-family: 'Kanit', sans-serif; }\n        .primary-color { color: ${config.branding.colors.primary}; }\n        .bg-primary { background-color: ${config.branding.colors.primary}; }\n        .bg-secondary { background-color: ${config.branding.colors.secondary}; }\n        .accent-color { color: ${config.branding.colors.accent}; }\n    </style>\n</head>\n<body class=\"bg-gray-50\">\n    <!-- Navigation -->\n    <nav class=\"bg-white shadow-lg sticky top-0 z-50\">\n        <div class=\"max-w-7xl mx-auto px-4\">\n            <div class=\"flex justify-between items-center py-4\">\n                <div class=\"flex items-center\">\n                    <h1 class=\"text-2xl font-bold primary-color\">${config.branding.name}</h1>\n                </div>\n                <div class=\"hidden md:flex space-x-8\">\n                    <a href=\"#home\" class=\"text-gray-700 hover:text-blue-600\">หน้าแรก</a>\n                    <a href=\"#about\" class=\"text-gray-700 hover:text-blue-600\">เกี่ยวกับเรา</a>\n                    <a href=\"#services\" class=\"text-gray-700 hover:text-blue-600\">บริการ</a>\n                    <a href=\"#contact\" class=\"text-gray-700 hover:text-blue-600\">ติดต่อ</a>\n                </div>\n            </div>\n        </div>\n    </nav>\n\n    <!-- Hero Section -->\n    <section id=\"home\" class=\"bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20\">\n        <div class=\"max-w-7xl mx-auto px-4 text-center\">\n            <h1 class=\"text-5xl font-bold mb-6\">${config.content.hero.title}</h1>\n            <p class=\"text-xl mb-8\">${config.content.hero.subtitle}</p>\n            <button class=\"bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-lg transition-colors\">\n                ${config.content.hero.cta}\n            </button>\n        </div>\n    </section>\n\n    <!-- About Section -->\n    <section id=\"about\" class=\"py-16\">\n        <div class=\"max-w-7xl mx-auto px-4\">\n            <div class=\"text-center mb-12\">\n                <h2 class=\"text-4xl font-bold text-gray-900 mb-4\">${config.content.about.title}</h2>\n                <p class=\"text-lg text-gray-600\">${config.content.about.description}</p>\n            </div>\n        </div>\n    </section>\n\n    <!-- Services Section -->\n    <section id=\"services\" class=\"bg-gray-100 py-16\">\n        <div class=\"max-w-7xl mx-auto px-4\">\n            <div class=\"text-center mb-12\">\n                <h2 class=\"text-4xl font-bold text-gray-900 mb-4\">บริการของเรา</h2>\n            </div>\n            <div class=\"grid grid-cols-1 md:grid-cols-3 gap-8\">\n                ${config.content.services.map(service => `\n                <div class=\"bg-white p-6 rounded-lg shadow-lg\">\n                    <h3 class=\"text-xl font-bold mb-4 primary-color\">${service.name || 'บริการ'}</h3>\n                    <p class=\"text-gray-600\">${service.description || 'รายละเอียดบริการ'}</p>\n                </div>\n                `).join('')}\n            </div>\n        </div>\n    </section>\n\n    <!-- Contact Section -->\n    <section id=\"contact\" class=\"py-16\">\n        <div class=\"max-w-7xl mx-auto px-4\">\n            <div class=\"text-center mb-12\">\n                <h2 class=\"text-4xl font-bold text-gray-900 mb-4\">ติดต่อเรา</h2>\n            </div>\n            <div class=\"grid grid-cols-1 md:grid-cols-2 gap-8\">\n                <div>\n                    <h3 class=\"text-xl font-bold mb-4\">ข้อมูลติดต่อ</h3>\n                    <p class=\"mb-2\"><strong>อีเมล:</strong> ${config.content.contact.email}</p>\n                    <p class=\"mb-2\"><strong>โทรศัพท์:</strong> ${config.content.contact.phone}</p>\n                    <p class=\"mb-2\"><strong>ที่อยู่:</strong> ${config.content.contact.address}</p>\n                </div>\n                <div>\n                    <h3 class=\"text-xl font-bold mb-4\">ส่งข้อความ</h3>\n                    <form class=\"space-y-4\">\n                        <input type=\"text\" placeholder=\"ชื่อ\" class=\"w-full p-3 border rounded-lg\">\n                        <input type=\"email\" placeholder=\"อีเมล\" class=\"w-full p-3 border rounded-lg\">\n                        <textarea placeholder=\"ข้อความ\" rows=\"4\" class=\"w-full p-3 border rounded-lg\"></textarea>\n                        <button type=\"submit\" class=\"bg-primary text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors\">\n                            ส่งข้อความ\n                        </button>\n                    </form>\n                </div>\n            </div>\n        </div>\n    </section>\n\n    <!-- Footer -->\n    <footer class=\"bg-gray-900 text-white py-8\">\n        <div class=\"max-w-7xl mx-auto px-4 text-center\">\n            <p>&copy; 2025 ${config.branding.name}. สงวนลิขสิทธิ์ทุกประการ</p>\n        </div>\n    </footer>\n\n    <script>\n        // Smooth scrolling\n        document.querySelectorAll('a[href^=\"#\"]').forEach(anchor => {\n            anchor.addEventListener('click', function (e) {\n                e.preventDefault();\n                document.querySelector(this.getAttribute('href')).scrollIntoView({\n                    behavior: 'smooth'\n                });\n            });\n        });\n    </script>\n</body>\n</html>`;\n};\n\n// Generate website files\nconst htmlCode = generateHTML(websiteConfig);\n\n// Prepare file structure\nconst websiteFiles = {\n  'index.html': htmlCode,\n  'package.json': JSON.stringify({\n    name: websiteConfig.branding.name.toLowerCase().replace(/\\s+/g, '-'),\n    version: '1.0.0',\n    description: websiteConfig.seo.description,\n    main: 'index.html',\n    scripts: {\n      dev: 'live-server .',\n      build: 'echo \"Static website ready for deployment\"'\n    },\n    devDependencies: {\n      'live-server': '^1.2.2'\n    }\n  }, null, 2),\n  'README.md': `# ${websiteConfig.branding.name}\\n\\n${websiteConfig.seo.description}\\n\\n## การติดตั้ง\\n\\n\\`\\`\\`bash\\nnpm install\\nnpm run dev\\n\\`\\`\\`\\n\\n## การ Deploy\\n\\n- Netlify: ลาก index.html เข้าไปใน Netlify Drop\\n- Vercel: Import จาก GitHub\\n- GitHub Pages: Push ไปยัง repository และเปิด GitHub Pages`\n};\n\nreturn {\n  requestId: requestId,\n  websiteConfig: websiteConfig,\n  files: websiteFiles,\n  downloadUrl: `https://api.kodedeeai.com/website/download/${requestId}`,\n  previewUrl: `https://preview.kodedeeai.com/website/${requestId}`,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "code-4",
+      "name": "Generate Website Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "websites",
+        "fields": "={\n  \"_id\": \"{{ $json.requestId }}\",\n  \"config\": {{ $json.websiteConfig }},\n  \"files\": {{ $json.files }},\n  \"downloadUrl\": \"{{ $json.downloadUrl }}\",\n  \"previewUrl\": \"{{ $json.previewUrl }}\",\n  \"status\": \"completed\",\n  \"createdAt\": \"{{ $json.timestamp }}\",\n  \"metadata\": {\n    \"template\": \"{{ $json.websiteConfig.template }}\",\n    \"pages\": {{ $json.websiteConfig.pages }},\n    \"features\": {{ $json.websiteConfig.features }}\n  }\n}",
+        "options": {}
+      },
+      "id": "mongodb-2",
+      "name": "Save Website to Database",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "credentials": {
+        "mongoDb": {
+          "id": "mongodb-kodedeeai",
+          "name": "KodeDeeAI MongoDB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"requestId\": \"{{ $json.requestId }}\",\n  \"downloadUrl\": \"{{ $json.downloadUrl }}\",\n  \"previewUrl\": \"{{ $json.previewUrl }}\",\n  \"websiteName\": \"{{ $json.websiteConfig.branding.name }}\",\n  \"pages\": {{ $json.websiteConfig.pages }},\n  \"message\": \"Website generated successfully! You can preview and download your website.\"\n}"
+      },
+      "id": "webhook-response-2",
+      "name": "Return Website Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Website Builder Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Website Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Website Request": {
+      "main": [
+        [
+          {
+            "node": "Generate Website Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Website Code": {
+      "main": [
+        [
+          {
+            "node": "Save Website to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Website to Database": {
+      "main": [
+        [
+          {
+            "node": "Return Website Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "timezone": "Asia/Bangkok",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "website-builder",
+      "name": "Website Builder"
+    },
+    {
+      "id": "automation",
+      "name": "Automation"
+    },
+    {
+      "id": "kodedeeai",
+      "name": "KodeDeeAI"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-06-29T00:00:00.000Z",
+  "versionId": "1.0.0"
+}

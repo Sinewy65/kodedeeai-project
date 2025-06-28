@@ -1,0 +1,213 @@
+{
+  "name": "KodeDeeAI Creative Studio Flow",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "creative/generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Creative Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "creative-studio-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process creative request\nconst requestData = $input.first().json;\n\n// Extract parameters\nconst {\n  type = 'logo',\n  style = 'modern',\n  colors = ['#3B82F6', '#1E40AF'],\n  text = '',\n  size = 'medium'\n} = requestData;\n\n// Validate required fields\nif (!text && type === 'logo') {\n  throw new Error('Text is required for logo generation');\n}\n\n// Prepare AI prompt\nlet prompt = '';\nswitch (type) {\n  case 'logo':\n    prompt = `Create a ${style} logo design with text \"${text}\" using colors ${colors.join(', ')}`;\n    break;\n  case 'banner':\n    prompt = `Design a ${style} banner with dimensions suitable for ${size} size using colors ${colors.join(', ')}`;\n    break;\n  case 'social':\n    prompt = `Create ${style} social media graphics with text \"${text}\" optimized for engagement`;\n    break;\n  default:\n    prompt = `Generate ${style} creative content: ${text}`;\n}\n\n// Return processed data\nreturn {\n  originalRequest: requestData,\n  aiPrompt: prompt,\n  timestamp: new Date().toISOString(),\n  requestId: `cr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};"
+      },
+      "id": "code-1",
+      "name": "Process Creative Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/images/generations",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"model\": \"dall-e-3\",\n  \"prompt\": \"{{ $json.aiPrompt }}\",\n  \"n\": 1,\n  \"size\": \"1024x1024\",\n  \"quality\": \"standard\",\n  \"style\": \"vivid\"\n}",
+        "options": {}
+      },
+      "id": "http-1",
+      "name": "Generate AI Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process AI response and save to database\nconst aiResponse = $input.first().json;\nconst requestData = $('Process Creative Request').first().json;\n\n// Extract image URL from OpenAI response\nconst imageUrl = aiResponse.data?.[0]?.url;\n\nif (!imageUrl) {\n  throw new Error('Failed to generate image from AI');\n}\n\n// Prepare database record\nconst creativeRecord = {\n  id: requestData.requestId,\n  type: requestData.originalRequest.type,\n  prompt: requestData.aiPrompt,\n  imageUrl: imageUrl,\n  originalRequest: requestData.originalRequest,\n  status: 'completed',\n  createdAt: requestData.timestamp,\n  metadata: {\n    model: 'dall-e-3',\n    size: '1024x1024',\n    quality: 'standard'\n  }\n};\n\n// Return for database insertion\nreturn {\n  creative: creativeRecord,\n  response: {\n    success: true,\n    requestId: requestData.requestId,\n    imageUrl: imageUrl,\n    downloadUrl: `https://api.kodedeeai.com/creative/download/${requestData.requestId}`,\n    message: 'Creative content generated successfully'\n  }\n};"
+      },
+      "id": "code-2",
+      "name": "Process AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "creatives",
+        "fields": "={\n  \"_id\": \"{{ $json.creative.id }}\",\n  \"type\": \"{{ $json.creative.type }}\",\n  \"prompt\": \"{{ $json.creative.prompt }}\",\n  \"imageUrl\": \"{{ $json.creative.imageUrl }}\",\n  \"originalRequest\": {{ $json.creative.originalRequest }},\n  \"status\": \"{{ $json.creative.status }}\",\n  \"createdAt\": \"{{ $json.creative.createdAt }}\",\n  \"metadata\": {{ $json.creative.metadata }}\n}",
+        "options": {}
+      },
+      "id": "mongodb-1",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "credentials": {
+        "mongoDb": {
+          "id": "mongodb-kodedeeai",
+          "name": "KodeDeeAI MongoDB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response }}"
+      },
+      "id": "webhook-response-1",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Error handling\nconst error = $input.first().json;\n\n// Log error\nconsole.error('Creative Studio Flow Error:', error);\n\n// Return error response\nreturn {\n  success: false,\n  error: {\n    message: error.message || 'An error occurred while generating creative content',\n    code: 'CREATIVE_GENERATION_ERROR',\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "code-error",
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "webhook-response-error",
+      "name": "Return Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 480]
+    }
+  ],
+  "connections": {
+    "Creative Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Creative Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Creative Request": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Image": {
+      "main": [
+        [
+          {
+            "node": "Process AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process AI Response": {
+      "main": [
+        [
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Database": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Error": {
+      "main": [
+        [
+          {
+            "node": "Return Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "timezone": "Asia/Bangkok",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "error-handler-workflow"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "creative",
+      "name": "Creative Studio"
+    },
+    {
+      "id": "ai",
+      "name": "AI Generation"
+    },
+    {
+      "id": "kodedeeai",
+      "name": "KodeDeeAI"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-06-29T00:00:00.000Z",
+  "versionId": "1.0.0"
+}
